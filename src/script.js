@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import GUI from 'lil-gui'
 import particlesVertexShader from './shaders/particles/vertex.glsl'
 import particlesFragmentShader from './shaders/particles/fragment.glsl'
 
@@ -46,7 +47,6 @@ window.addEventListener('resize', () =>
 /**
  * Camera
  */
-// Base camera
 const camera = new THREE.PerspectiveCamera(35, sizes.width / sizes.height, 0.1, 100)
 camera.position.set(0, 0, 18)
 scene.add(camera)
@@ -76,7 +76,7 @@ displacement.canvas.style.height = '256px'
 displacement.canvas.style.top = 0
 displacement.canvas.style.left = 0
 displacement.canvas.style.zIndex = 10
-document.body.append(displacement.canvas)
+// document.body.append(displacement.canvas)
 
 displacement.context = displacement.canvas.getContext('2d')
 displacement.context.fillRect(0, 0, displacement.canvas.width, displacement.canvas.height)
@@ -84,29 +84,27 @@ displacement.context.fillRect(0, 0, displacement.canvas.width, displacement.canv
 displacement.glowImage = new Image()
 displacement.glowImage.src = './glow.png'
 
-//interactive plane
+// Interactive plane
 displacement.interactivePlane = new THREE.Mesh(
     new THREE.PlaneGeometry(10, 10),
     new THREE.MeshBasicMaterial({color: 'red', side: THREE.DoubleSide})
 )
 scene.add(displacement.interactivePlane)
 
-// raycaster
+// Raycaster
 displacement.raycaster = new THREE.Raycaster()
 displacement.screenCursor = new THREE.Vector2(9999, 9999)
 displacement.canvasCursor = new THREE.Vector2(9999, 9999)
 displacement.canvasCursorPrev = new THREE.Vector2(9999, 9999)
 
 window.addEventListener('pointermove', (event) => {
-
     displacement.screenCursor.x = ((event.clientX / sizes.width) * 2 - 1)
     displacement.screenCursor.y = (- (event.clientY / sizes.height) * 2 + 1)
-
 })
 
 displacement.texture = new THREE.CanvasTexture(displacement.canvas)
 
-displacement.interactivePlane.visible = false;
+displacement.interactivePlane.visible = false
 
 /**
  * Particles
@@ -139,6 +137,38 @@ const particles = new THREE.Points(particlesGeometry, particlesMaterial)
 scene.add(particles)
 
 /**
+ * GUI + Image Selector
+ */
+const gui = new GUI()
+
+// Hidden file input
+const fileInput = document.createElement('input')
+fileInput.type = 'file'
+fileInput.accept = 'image/*'
+fileInput.style.display = 'none'
+document.body.appendChild(fileInput)
+
+fileInput.addEventListener('change', (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = function(e) {
+        const img = new Image()
+        img.src = e.target.result
+        img.onload = () => {
+            const newTexture = new THREE.Texture(img)
+            newTexture.needsUpdate = true
+            particlesMaterial.uniforms.uTexture.value = newTexture
+        }
+    }
+    reader.readAsDataURL(file)
+})
+
+// GUI button to trigger upload
+gui.add({ Upload_Image: () => fileInput.click() }, 'Upload_Image')
+
+/**
  * Animate
  */
 const tick = () =>
@@ -162,7 +192,6 @@ const tick = () =>
     const cursorDis = displacement.canvasCursorPrev.distanceTo(displacement.canvasCursor)
     displacement.canvasCursorPrev.copy(displacement.canvasCursor)
     const alpha = Math.min(cursorDis * 0.1, 1)
-
 
     const glowSize = displacement.canvas.width * 0.25
     displacement.context.globalCompositeOperation = 'lighten'
